@@ -283,7 +283,7 @@ class simpleauth
                 throw new \Exception('Too many registration attempts. Please try again later.');
             }
 
-            $login = $this->apiInput('email');                    // Assuming JWT_LOGIN is set to 'email'
+            $login = $this->apiInput('username');                   
             $password = $this->apiInput('password');
             
             // Basic validation
