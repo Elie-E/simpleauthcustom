@@ -291,8 +291,48 @@ class simpleauth
                 throw new \Exception('Email and password are required');
             }
             
-            // Attempt to create the user
-            $this->createUser($login, $password);
+            // Prepare the avatar path (but do not upload yet)
+            $avatar_path = null;
+            if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] == UPLOAD_ERR_OK) {
+                $random_identifier = bin2hex(random_bytes(4)); // Generate random identifier (8 hex characters)
+                $avatar_extension = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
+                $avatar_name = "avatar_" . strtolower($login) . "_" . $random_identifier . "." . $avatar_extension;
+                $avatar_path = "/assets/img/avatar/" . $avatar_name;
+            }
+
+            // Attempt to create the user with avatar path
+            $this->createUser($login, $password, $avatar_path);
+
+            // Only after successful registration, move the uploaded file
+            if ($avatar_path !== null) {
+                $target_dir = __DIR__ . "/../../../../public/assets/img/avatar/";
+                $target_file = $target_dir . basename($avatar_path);
+                $target_file_small = $target_dir . "small_" . basename($avatar_path);
+
+                // Move the uploaded file to storage and create compressed versions
+                if (move_uploaded_file($_FILES['avatar']['tmp_name'], $target_file)) {
+                    try {
+                        // Load the image using Imagick
+                        $imagick = new \Imagick($target_file);
+
+                        // Create a small avatar version (60x60)
+                        $imagick_small = clone $imagick; // Clone to avoid modifying the original
+                        $imagick_small->thumbnailImage(60, 60, true);
+                        $imagick_small->setImageFormat('webp');
+                        $imagick_small->writeImage($target_file_small);
+
+                        // Optionally resize the main avatar (e.g., max width/height 300 for profile page)
+                        $imagick->resizeImage(300, 300, \Imagick::FILTER_LANCZOS, 1, true);
+                        $imagick->setImageFormat('webp');
+                        $imagick->writeImage($target_file);
+
+                    } catch (\ImagickException $e) {
+                        throw new \Exception('User registered, but failed to process avatar. Please try uploading the avatar again.');
+                    }
+                } else {
+                    throw new \Exception('User registered, but failed to save avatar. Please try uploading the avatar again.');
+                }
+            }
             
             return $this->apiResponse(
                 [
@@ -347,7 +387,7 @@ class simpleauth
         return true;
     }
 
-    function createUser($login, $password)
+    function createUser($login, $password, $avatar_path)
     {
         if (
             $this->db->fetch_var(
@@ -358,9 +398,10 @@ class simpleauth
             throw new \Exception('user already exists');
         }
         $this->db->query(
-            'INSERT INTO ' . $this->config->JWT_TABLE . '(' . $this->config->JWT_LOGIN . ',password) VALUES(?,?)',
+            'INSERT INTO ' . $this->config->JWT_TABLE . '(' . $this->config->JWT_LOGIN . ',password, avatar_path) VALUES(?,?,?)',
             $login,
-            password_hash($password, PASSWORD_DEFAULT)
+            password_hash($password, PASSWORD_DEFAULT),
+            $avatar_path
         );
         return true;
     }
