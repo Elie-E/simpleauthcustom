@@ -293,11 +293,17 @@ class simpleauth
             
             // Prepare the avatar path (but do not upload yet)
             $avatar_path = null;
+            $avatar_path_small = null;
             if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] == UPLOAD_ERR_OK) {
                 $random_identifier = bin2hex(random_bytes(4)); // Generate random identifier (8 hex characters)
-                $avatar_extension = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
-                $avatar_name = "avatar_" . strtolower($login) . "_" . $random_identifier . "." . $avatar_extension;
+
+                // Define file names for both main and small avatars
+                $avatar_name = strtolower($login) . "_" . $random_identifier . ".webp";
+                $avatar_name_small = "small_" . strtolower($login) . "_" . $random_identifier . ".webp";
+
+                // Define the avatar paths
                 $avatar_path = "/assets/img/avatar/" . $avatar_name;
+                $avatar_path_small = "/assets/img/avatar/" . $avatar_name_small;
             }
 
             // Attempt to create the user with avatar path
@@ -307,7 +313,7 @@ class simpleauth
             if ($avatar_path !== null) {
                 $target_dir = __DIR__ . "/../../../../public/assets/img/avatar/";
                 $target_file = $target_dir . basename($avatar_path);
-                $target_file_small = $target_dir . "small_" . basename($avatar_path);
+                $target_file_small = $target_dir . basename($avatar_path_small);
 
                 // Move the uploaded file to storage and create compressed versions
                 if (move_uploaded_file($_FILES['avatar']['tmp_name'], $target_file)) {
@@ -321,7 +327,7 @@ class simpleauth
                         $imagick_small->setImageFormat('webp');
                         $imagick_small->writeImage($target_file_small);
 
-                        // Optionally resize the main avatar (e.g., max width/height 300 for profile page)
+                        // Resize the main avatar (e.g., max width/height 300 for profile page)
                         $imagick->resizeImage(300, 300, \Imagick::FILTER_LANCZOS, 1, true);
                         $imagick->setImageFormat('webp');
                         $imagick->writeImage($target_file);
