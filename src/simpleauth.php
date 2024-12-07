@@ -285,6 +285,12 @@ class simpleauth
 
             $login = $this->apiInput('username');                   
             $password = $this->apiInput('password');
+            $email = $this->apiInput('email');
+
+            // Convert empty email to NULL
+            if (empty($email)) {
+                $email = null; // Set email to null for SQL
+            }
             
             // Basic validation
             if (empty($login) || empty($password)) {
@@ -307,7 +313,7 @@ class simpleauth
             }
 
             // Attempt to create the user with avatar path
-            $this->createUser($login, $password, $avatar_path);
+            $this->createUser($login, $email, $password, $avatar_path);
 
             // Only after successful registration, move the uploaded file
             if ($avatar_path !== null) {
@@ -393,7 +399,7 @@ class simpleauth
         return true;
     }
 
-    function createUser($login, $password, $avatar_path)
+    function createUser($login, $email, $password, $avatar_path)
     {
         if (
             $this->db->fetch_var(
@@ -404,8 +410,9 @@ class simpleauth
             throw new \Exception('user already exists');
         }
         $this->db->query(
-            'INSERT INTO ' . $this->config->JWT_TABLE . '(' . $this->config->JWT_LOGIN . ',password, avatar_path) VALUES(?,?,?)',
+            'INSERT INTO ' . $this->config->JWT_TABLE . '(' . $this->config->JWT_LOGIN . ',email,password, avatar_path) VALUES(?,?,?,?)',
             $login,
+            $email,
             password_hash($password, PASSWORD_DEFAULT),
             $avatar_path
         );
